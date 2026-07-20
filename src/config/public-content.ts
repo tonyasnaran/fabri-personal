@@ -16,10 +16,10 @@ export const projects: Project[] = [
     name: "DEROS",
     role: "Founder",
     status: "Ongoing",
-    tags: ["Founder-Led", "Venture Building"],
-    summary: "A venture built from the ground up — vision, execution, and everything between.",
+    tags: ["Social Lifestyle Brand", "Community"],
+    summary: "A social lifestyle brand for the ones who create momentum together.",
     description:
-      "DEROS is where I put the builder mindset to work: taking an idea from a blank page to something real, and owning every layer of that process along the way. Founding it meant learning to move between the conceptual and the operational without losing momentum in either direction.",
+      "DEROS is a social lifestyle brand, not a startup pitch — built for people who move socially, creatively, and culturally. It isn't another event; it's a room built so the right people end up in it at the right time. The idea is simple: momentum matters more than credentials, and the people around you quietly become your future. DEROS exists so ambition doesn't have to cost you your friendships, your creativity, or your actual life — and so the ones who used to feel like they were on the outside find a room built for them.",
   },
   {
     slug: "sidequests-club",
@@ -27,19 +27,20 @@ export const projects: Project[] = [
     role: "Founder",
     status: "Ongoing",
     tags: ["Community", "UCLA"],
-    summary: "A community built for students who want to explore outside the syllabus.",
+    summary:
+      "Built for Bruins who wanted curiosity, real experiences, and real people — not just a syllabus.",
     description:
-      "The Sidequests Club started from a simple belief — that some of the most valuable parts of college happen off the planned path. Founding SQC meant building the structure, culture, and momentum for a community from nothing, and giving it a reason to keep growing.",
+      "The Sidequests Club started from a simple belief: the best parts of college rarely show up on the syllabus. Founding it meant building a community from nothing — a reason for curious people to keep showing up, meet each other, and experience college as more than a classroom.",
   },
   {
     slug: "iota-psi-omega",
     name: "Iota Psi Omega",
     role: "Founder & President",
     status: "Ongoing",
-    tags: ["Leadership", "Organization"],
-    summary: "An organization founded and led from the first meeting onward.",
+    tags: ["Startup Society", "UCLA"],
+    summary: "A UCLA startup society for builders who wanted a community as strong as their ideas.",
     description:
-      "Founding and presiding over Iota Psi Omega meant building an organization's foundation — its structure, its standards, and the people who carry it forward — and then staying accountable for it as president, not just at the start.",
+      "Iota Psi Omega is a startup society and incubator at UCLA, built for technical and non-technical students who want to build startups together, not just attend meetings. Founding and presiding over it meant creating a community where ambitious builders and founders could collaborate on real ideas — one where the social side mattered as much as the technical one.",
   },
 ];
 
@@ -47,22 +48,22 @@ export const capabilities = [
   {
     label: "Builder",
     description:
-      "Comfortable turning an idea into something that exists — scoping it, shipping it, and iterating once it's real.",
+      'I like taking an idea from "wouldn\'t it be cool if" to something real — then fixing it as I go.',
   },
   {
-    label: "Connector",
+    label: "Sidequester",
     description:
-      "Founding communities and organizations has meant constantly bringing people together around a shared reason to show up.",
+      "I like the version of a plan, a place, or a night that isn't on the itinerary. Some of my best ideas — and best friends — came from a detour I didn't plan for.",
   },
   {
-    label: "Operator",
+    label: "Creative Director",
     description:
-      "Vision only matters if it runs day to day — structure, follow-through, and accountability are where it actually lives.",
+      "I notice rooms, aesthetics, and the small details most people scroll past. Mood boards and the way a space feels have never been decoration to me — they're the point.",
   },
   {
-    label: "Creative Strategist",
+    label: "Optimizer",
     description:
-      "Every venture and organization here started as a question about positioning and direction before it became execution.",
+      "I like systems more than most people find normal. If something takes ten steps and could take three, I'll probably rebuild it — not because I have to, but because it bugs me otherwise.",
   },
 ] as const;
 

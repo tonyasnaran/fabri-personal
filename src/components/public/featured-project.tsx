@@ -6,16 +6,16 @@ const deros = projects.find((project) => project.slug === "deros")!;
 
 const columns = [
   {
-    heading: "The build",
-    body: "Every founder-led project starts the same way: an idea with no scaffolding yet. DEROS meant building that scaffolding myself — structure, direction, and the first real version.",
+    heading: "The room",
+    body: "DEROS starts with the room, not the résumé. Put the right people in the right space and momentum takes care of itself.",
   },
   {
-    heading: "The ownership",
-    body: "There's no separation between strategy and execution when you're the one doing both. DEROS is where I learned to hold the whole picture at once.",
+    heading: "The movement",
+    body: "It moves socially, creatively, culturally — through experiences people actually remember, not another calendar invite.",
   },
   {
     heading: "What's next",
-    body: "Still building. DEROS stays a live, ongoing effort rather than a finished case study.",
+    body: "Still building, on purpose. DEROS stays a living thing rather than a finished pitch.",
   },
 ];
 

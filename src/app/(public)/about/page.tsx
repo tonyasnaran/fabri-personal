@@ -16,8 +16,8 @@ export default function AboutPage() {
     <>
       <PageIntro
         label="About"
-        title="Builder first. Everything else follows from that."
-        description="I found early on that I'd rather start the thing than wait to be handed a seat at one."
+        title="If it doesn't exist yet, I'll probably just build it."
+        description="Early on, I realized I'd rather start the thing than wait to be handed a seat at someone else's table."
       />
 
       <section className="mx-auto max-w-5xl px-6 pb-24">
@@ -53,8 +53,16 @@ export default function AboutPage() {
           <div className="fade-rise fade-rise-2 flex flex-col gap-3">
             <SectionLabel>Current Focus</SectionLabel>
             <p className="text-sm text-[#6B6558]">
-              Building DEROS, running The Sidequests Club at UCLA, and presiding over Iota Psi Omega
-              — in parallel, not in sequence.
+              Right now, that&apos;s almost entirely DEROS — growing it, building real relationships
+              across the events industry, and creating experiences people actually want to come back
+              to. That takes shape as a running series: THE TABLE, THE COURT, THE RUN, THE AFTERS —
+              recurring, wellness-forward experiences built on one idea: put the right people in the
+              right room and let momentum do the rest.
+            </p>
+            <p className="text-sm text-[#6B6558]">
+              The longer-term vision is a curated network — people, opportunities, and partnerships
+              that compound over time, where what members know and share makes everyone in the room
+              more effective, not just more connected.
             </p>
           </div>
 

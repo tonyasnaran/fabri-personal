@@ -8,11 +8,11 @@ export function HeroSection() {
       <div className="fade-rise flex flex-col gap-6">
         <SectionLabel>{siteConfig.location}</SectionLabel>
         <h1 className="max-w-3xl font-[family-name:var(--font-fraunces)] text-5xl leading-[1.05] tracking-tight sm:text-7xl">
-          Anthony Asnaran builds things and the people who run them.
+          Creating rooms where ambitious people actually want to be.
         </h1>
+        <SectionLabel>Class of 2026</SectionLabel>
         <p className="max-w-xl text-lg text-[#6B6558] sm:text-xl">
-          Founder of DEROS, The Sidequests Club at UCLA, and Iota Psi Omega. UCLA Business Economics
-          &amp; Accounting, class of 2026.
+          Founder of DEROS, The Sidequests Club at UCLA, and Iota Psi Omega.
         </p>
       </div>
 
