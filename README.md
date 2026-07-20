@@ -320,8 +320,8 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
   account, and whether or not it was rate-limited — this avoids turning the form into an
   account-existence oracle.
 - `next.config.ts` sets a baseline CSP plus `X-Frame-Options`, `X-Content-Type-Options`,
-  `Referrer-Policy`, `Permissions-Policy`, and HSTS. Two adjustments were made after testing
-  against a real production deploy (both documented in code comments where they're set):
+  `Referrer-Policy`, `Permissions-Policy`, and HSTS. Several adjustments were made after testing
+  against a real production deploy (all documented in code comments where they're set):
   - `form-action` explicitly allowlists `accounts.google.com` and `github.com`: the "Continue
     with Google/GitHub" buttons are same-origin form submissions that the server 303-redirects
     to the provider, and browsers enforce `form-action` against that redirect _target_ too, not
@@ -336,6 +336,10 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
     render dynamically, disabling static optimization even for the public marketing pages —
     a worse tradeoff here. See the comment above `contentSecurityPolicy` in `next.config.ts` for
     the full reasoning and a link to Next's own docs on both approaches.
+  - `script-src`/`frame-src`/`connect-src` allowlist `cdn.plaid.com` (and
+    `production.plaid.com`/`sandbox.plaid.com`/`tags.plaid.com` for `connect-src`) — this is
+    Plaid's own documented CSP requirement for embedding Plaid Link, which loads its script and
+    opens its account-selection UI from `cdn.plaid.com` in an iframe.
 
   The Resend call happens server-side, not subject to browser CSP at all.
 

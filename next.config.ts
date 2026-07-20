@@ -31,11 +31,22 @@ const isDev = process.env.NODE_ENV === "development";
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  // https://cdn.plaid.com: Plaid Link loads its own script from here
+  // (react-plaid-link injects a <script src="https://cdn.plaid.com/link/...">
+  // tag) — this is Plaid's documented CSP requirement for embedding Link,
+  // not optional.
+  `script-src 'self' 'unsafe-inline' https://cdn.plaid.com${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  // production.plaid.com/sandbox.plaid.com/tags.plaid.com: Plaid Link's
+  // script pings these directly from our page context before/while the
+  // Link iframe is open (telemetry, config). Once the iframe itself is
+  // open, its own network activity runs under cdn.plaid.com's CSP, not
+  // ours, so it doesn't need to be listed here too.
+  "connect-src 'self' https://production.plaid.com https://sandbox.plaid.com https://tags.plaid.com",
+  // Plaid Link renders as an iframe from cdn.plaid.com.
+  "frame-src https://cdn.plaid.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   // 'self' plus the OAuth providers' authorization endpoints: the
