@@ -74,6 +74,12 @@ export function notFoundResponse(message = "Resource not found"): NextResponse<A
   return apiError("NOT_FOUND", message);
 }
 
+export function rateLimitedResponse(
+  message = "Too many requests. Please try again shortly.",
+): NextResponse<ApiFailure> {
+  return apiError("RATE_LIMITED", message);
+}
+
 export function validationErrorResponse(error: ZodError): NextResponse<ApiFailure> {
   return apiError("VALIDATION_ERROR", "Request validation failed", {
     details: error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })),

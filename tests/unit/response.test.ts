@@ -9,6 +9,7 @@ import {
   validationErrorResponse,
   notImplementedResponse,
   internalErrorResponse,
+  rateLimitedResponse,
 } from "@/lib/api/response";
 
 describe("api response helpers", () => {
@@ -44,6 +45,13 @@ describe("api response helpers", () => {
 
   it("notImplementedResponse returns 501", () => {
     expect(notImplementedResponse().status).toBe(501);
+  });
+
+  it("rateLimitedResponse returns 429", async () => {
+    const res = rateLimitedResponse();
+    expect(res.status).toBe(429);
+    const body = await res.json();
+    expect(body.error.code).toBe("RATE_LIMITED");
   });
 
   it("internalErrorResponse returns 500 and never leaks the raw message", async () => {

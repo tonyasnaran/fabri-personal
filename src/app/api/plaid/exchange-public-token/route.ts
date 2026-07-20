@@ -6,14 +6,20 @@ import {
   apiSuccess,
   internalErrorResponse,
   notImplementedResponse,
+  rateLimitedResponse,
   unauthorizedResponse,
   validationErrorResponse,
 } from "@/lib/api/response";
 import { logger } from "@/lib/security/logger";
+import { getSensitiveEndpointRateLimiter } from "@/lib/security/rate-limit";
+import { userRateLimitId } from "@/lib/security/rate-limit-identifier";
 
 export async function POST(request: NextRequest) {
   try {
     const user = await requireApiUser();
+
+    const { success } = await getSensitiveEndpointRateLimiter().limit(userRateLimitId(user.id));
+    if (!success) return rateLimitedResponse();
 
     const body = await request.json().catch(() => ({}));
     const parsed = exchangePublicTokenSchema.safeParse(body);

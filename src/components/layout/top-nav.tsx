@@ -14,7 +14,7 @@ export function TopNav({ user }: { user: AuthenticatedUser }) {
         <form
           action={async () => {
             "use server";
-            await signOut({ redirectTo: "/" });
+            await signOut({ redirectTo: "/signed-out" });
           }}
         >
           <button
