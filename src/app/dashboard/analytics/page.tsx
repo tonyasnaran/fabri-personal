@@ -1,7 +1,12 @@
+import { requireUser } from "@/lib/auth/require-user";
 import { ChartContainer } from "@/components/dashboard/chart-container";
+import { SpendingByCategory } from "@/components/dashboard/spending-by-category";
+import { IncomeVsSpending } from "@/components/dashboard/income-vs-spending";
 import { EmptyState } from "@/components/ui/empty-state";
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  const user = await requireUser();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -12,17 +17,11 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartContainer title="Spending by category">
-          <EmptyState
-            title="No data yet"
-            description="Categorized spending will appear here once transactions sync."
-          />
+        <ChartContainer title="Spending by category" description="This month">
+          <SpendingByCategory userId={user.id} />
         </ChartContainer>
-        <ChartContainer title="Income vs. spending">
-          <EmptyState
-            title="No data yet"
-            description="This comparison will appear here once transactions sync."
-          />
+        <ChartContainer title="Income vs. spending" description="This month">
+          <IncomeVsSpending userId={user.id} />
         </ChartContainer>
       </div>
 
