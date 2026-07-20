@@ -16,7 +16,14 @@ const contentSecurityPolicy = [
   "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // 'self' plus the OAuth providers' authorization endpoints: the
+  // "Continue with Google/GitHub" buttons are same-origin form
+  // submissions that the server then 303-redirects to the provider.
+  // Browsers enforce form-action against that redirect target too (not
+  // just the form's initial action URL), so omitting these silently
+  // blocks the redirect — the request still succeeds server-side (a
+  // valid Location header is sent), the browser just won't follow it.
+  "form-action 'self' https://accounts.google.com https://github.com",
 ].join("; ");
 
 const securityHeaders = [

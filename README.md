@@ -313,10 +313,14 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
   account, and whether or not it was rate-limited — this avoids turning the form into an
   account-existence oracle.
 - `next.config.ts` sets a baseline CSP plus `X-Frame-Options`, `X-Content-Type-Options`,
-  `Referrer-Policy`, `Permissions-Policy`, and HSTS. Reviewed against this task's OAuth/Resend
-  additions: OAuth sign-in is a same-origin form POST followed by a server-side redirect (not
-  governed by `form-action`), and the Resend call happens server-side (not subject to browser
-  CSP at all), so no policy changes were needed.
+  `Referrer-Policy`, `Permissions-Policy`, and HSTS. `form-action` explicitly allowlists
+  `accounts.google.com` and `github.com`: the "Continue with Google/GitHub" buttons are
+  same-origin form submissions that the server 303-redirects to the provider, and browsers
+  enforce `form-action` against that redirect _target_ too, not just the form's own action URL
+  — with only `'self'`, the server sends a perfectly valid redirect and the browser silently
+  refuses to follow it. (Found this the hard way testing real Google sign-in post-deploy — the
+  server-side redirect and Google Console config were both already correct.) The Resend call
+  happens server-side, not subject to browser CSP at all.
 - API responses never leak stack traces or raw exception messages — see
   `internalErrorResponse()` in `src/lib/api/response.ts`. Auth.js error pages only ever show
   copy mapped from a small allow-list of "client-safe" error codes (see
