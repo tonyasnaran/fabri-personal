@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireApiUser, UnauthorizedError } from "@/lib/auth/require-user";
 import { exchangePublicTokenSchema } from "@/lib/validation/plaid";
-import { exchangePublicToken, PlaidNotImplementedError } from "@/server/services/plaid-service";
+import { exchangePublicToken, PlaidNotConfiguredError } from "@/server/services/plaid-service";
 import {
   apiSuccess,
   internalErrorResponse,
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     return apiSuccess(result);
   } catch (error) {
     if (error instanceof UnauthorizedError) return unauthorizedResponse();
-    if (error instanceof PlaidNotImplementedError) return notImplementedResponse(error.message);
+    if (error instanceof PlaidNotConfiguredError) return notImplementedResponse(error.message);
 
     logger.error("plaid.exchange_public_token.failed", {
       message: error instanceof Error ? error.message : "unknown error",

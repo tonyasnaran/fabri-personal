@@ -1,28 +1,41 @@
 import type { NextRequest } from "next/server";
-import { handleWebhook, PlaidNotImplementedError } from "@/server/services/plaid-service";
-import { apiSuccess, internalErrorResponse, notImplementedResponse } from "@/lib/api/response";
+import { handleWebhook, PlaidNotConfiguredError } from "@/server/services/plaid-service";
+import { WebhookVerificationError } from "@/lib/plaid/webhook-verification";
+import {
+  apiSuccess,
+  internalErrorResponse,
+  notImplementedResponse,
+  unauthorizedResponse,
+} from "@/lib/api/response";
 import { logger } from "@/lib/security/logger";
 
 /**
  * Plaid calls this endpoint directly (no user session), so it cannot use
- * requireApiUser(). Instead it must be protected by verifying Plaid's
- * request signature.
+ * requireApiUser(). Instead it's protected by verifying the `Plaid-Verification`
+ * JWT header against Plaid's public key — see src/lib/plaid/webhook-verification.ts.
  *
- * TODO(next-task): verify the `Plaid-Verification` JWT header against
- * Plaid's public key (https://plaid.com/docs/api/webhooks/webhook-verification/)
- * before trusting the payload. Until that's implemented, this handler does
- * not process webhook contents.
+ * Reads the body as raw text (not request.json()) because signature
+ * verification needs the exact bytes Plaid signed; parsing to an object
+ * first and re-serializing it is not guaranteed to reproduce the same bytes.
+ *
+ * Not rate-limited: Plaid retries failed webhook deliveries, and the
+ * signature check itself already rejects anything that isn't a genuine,
+ * recent Plaid request before any real work happens.
  */
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json().catch(() => null);
+    const rawBody = await request.text();
+    const verificationJwt = request.headers.get("plaid-verification");
 
-    // Placeholder: signature verification would happen here, before any
-    // payload contents are trusted or acted upon.
-    const result = await handleWebhook(payload);
+    const result = await handleWebhook(rawBody, verificationJwt);
     return apiSuccess(result);
   } catch (error) {
-    if (error instanceof PlaidNotImplementedError) return notImplementedResponse(error.message);
+    if (error instanceof WebhookVerificationError) {
+      // Deliberately generic + 401, not 400: don't help an attacker
+      // distinguish "bad signature" from "malformed request".
+      return unauthorizedResponse("Webhook verification failed");
+    }
+    if (error instanceof PlaidNotConfiguredError) return notImplementedResponse(error.message);
 
     logger.error("plaid.webhook.failed", {
       message: error instanceof Error ? error.message : "unknown error",

@@ -1,6 +1,9 @@
+import { requireUser } from "@/lib/auth/require-user";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 
-export default function TransactionsPage() {
+export default async function TransactionsPage() {
+  const user = await requireUser();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -9,7 +12,7 @@ export default function TransactionsPage() {
           A full history of transactions across connected accounts.
         </p>
       </div>
-      <RecentTransactions />
+      <RecentTransactions userId={user.id} limit={50} title="All transactions" />
     </div>
   );
 }

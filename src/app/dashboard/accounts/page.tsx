@@ -1,6 +1,9 @@
+import { requireUser } from "@/lib/auth/require-user";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
 
-export default function AccountsPage() {
+export default async function AccountsPage() {
+  const user = await requireUser();
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -9,7 +12,7 @@ export default function AccountsPage() {
           Bank accounts connected through Plaid.
         </p>
       </div>
-      <ConnectedAccounts />
+      <ConnectedAccounts userId={user.id} />
     </div>
   );
 }

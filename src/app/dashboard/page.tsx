@@ -1,10 +1,23 @@
+import { requireUser } from "@/lib/auth/require-user";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ChartContainer } from "@/components/dashboard/chart-container";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { ConnectedAccounts } from "@/components/dashboard/connected-accounts";
+import { SpendingByCategory } from "@/components/dashboard/spending-by-category";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getBalanceSummaryForUser } from "@/server/repositories/financial-account.repository";
+import { getMonthlySummaryForUser } from "@/server/repositories/transaction.repository";
+import { formatCurrency } from "@/lib/utils/format-currency";
 
-export default function DashboardOverviewPage() {
+export default async function DashboardOverviewPage() {
+  const user = await requireUser();
+  const [balances, monthly] = await Promise.all([
+    getBalanceSummaryForUser(user.id),
+    getMonthlySummaryForUser(user.id),
+  ]);
+
+  const hasAccounts = balances.accountCount > 0;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -15,10 +28,26 @@ export default function DashboardOverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Net worth" value="—" hint="No accounts connected" />
-        <MetricCard label="Total balance" value="—" hint="No accounts connected" />
-        <MetricCard label="Monthly income" value="—" hint="No transactions yet" />
-        <MetricCard label="Monthly spending" value="—" hint="No transactions yet" />
+        <MetricCard
+          label="Net worth"
+          value={hasAccounts ? formatCurrency(balances.netWorth) : "—"}
+          hint={hasAccounts ? undefined : "No accounts connected"}
+        />
+        <MetricCard
+          label="Total balance"
+          value={hasAccounts ? formatCurrency(balances.totalBalance) : "—"}
+          hint={hasAccounts ? undefined : "No accounts connected"}
+        />
+        <MetricCard
+          label="Monthly income"
+          value={hasAccounts ? formatCurrency(monthly.income) : "—"}
+          hint={hasAccounts ? "This month" : "No transactions yet"}
+        />
+        <MetricCard
+          label="Monthly spending"
+          value={hasAccounts ? formatCurrency(monthly.spending) : "—"}
+          hint={hasAccounts ? "This month" : "No transactions yet"}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -27,21 +56,18 @@ export default function DashboardOverviewPage() {
           description="Tracks account balances over the last 12 months"
         >
           <EmptyState
-            title="Nothing to show yet"
-            description="This chart will populate once you connect a bank account."
+            title="Coming soon"
+            description="Historical balance tracking isn't implemented yet — this shows your current snapshot only."
           />
         </ChartContainer>
         <ChartContainer title="Spending overview" description="Spending by category this month">
-          <EmptyState
-            title="Nothing to show yet"
-            description="This chart will populate once transactions start syncing."
-          />
+          <SpendingByCategory userId={user.id} />
         </ChartContainer>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ConnectedAccounts />
-        <RecentTransactions />
+        <ConnectedAccounts userId={user.id} />
+        <RecentTransactions userId={user.id} />
       </div>
     </div>
   );

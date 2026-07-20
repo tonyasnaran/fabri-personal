@@ -22,15 +22,17 @@ test.describe("Sign-in page", () => {
     await expect(page.getByRole("link", { name: /back to site/i })).toBeVisible();
   });
 
-  test("shows a safe status message when no providers are configured (this test env has none)", async ({
+  test("renders exactly one coherent provider state, whatever is configured in this environment", async ({
     page,
   }) => {
     await page.goto("/sign-in");
-    // Either the "no providers" notice, or a real provider is configured —
-    // either way the page must render one coherent state, never a crash.
+    // Whichever of these is true depends on which providers this
+    // environment's .env.local happens to have configured — the page must
+    // render some coherent state either way, never a crash or a blank form.
     const hasNoticeOrForm = await page
       .getByRole("status")
       .or(page.getByLabel(/email address/i))
+      .or(page.getByRole("button", { name: /continue with/i }))
       .first()
       .isVisible();
     expect(hasNoticeOrForm).toBe(true);

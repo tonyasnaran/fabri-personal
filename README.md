@@ -1,9 +1,10 @@
 # Personal Dashboard
 
 A personal website with a public portfolio area and a private, authenticated financial
-dashboard. The dashboard is designed to eventually connect to real bank accounts through
-Plaid — this repository currently ships the **foundation**: architecture, auth, database
-schema, and UI shell, with Plaid wired up but intentionally not yet functional.
+dashboard. Authentication (Google/GitHub OAuth, email magic-link) and Plaid Sandbox account
+connection, transaction sync, and disconnect are fully implemented — see
+[Authentication Provider Setup](#authentication-provider-setup) and [Plaid Setup](#plaid-setup)
+to configure your own credentials and try it end to end.
 
 ## Technology stack
 
@@ -70,7 +71,8 @@ src/
       health/              # GET /api/health
       plaid/                # create-link-token, exchange-public-token, sync-transactions, webhook
   components/
-    dashboard/             # MetricCard, ChartContainer, RecentTransactions, ConnectedAccounts
+    dashboard/             # MetricCard, ChartContainer, RecentTransactions, ConnectedAccounts,
+                           # PlaidLinkButton (react-plaid-link), SpendingByCategory
     layout/                 # Sidebar, TopNav, MobileNav, public header/footer
     forms/                   # SubmitButton (useFormStatus pending state)
     ui/                     # EmptyState, Skeleton, ErrorState
@@ -80,13 +82,18 @@ src/
                              # normalizeEmail(), error-messages, branded email template
     db/                     # Prisma client singleton (driver adapter)
     encryption/             # AES-256-GCM secret encryption
-    plaid/                  # Plaid config + client factory
+    plaid/                  # Plaid config, client factory, account/transaction mappers,
+                             # webhook JWT signature verification
     security/               # Redacting logger, audit log writer, rate limiter + identifiers
     validation/              # Zod schemas for API input
     api/                     # Response envelope helpers
+    utils/                   # formatCurrency and other small pure helpers
   server/
-    repositories/            # User-scoped Prisma queries
-    services/                 # Business logic (Plaid placeholder service)
+    repositories/            # User-scoped Prisma queries (financial connections, accounts,
+                             # transactions, transaction sync state)
+    services/                 # Business logic — plaid-service.ts (Link, exchange, sync,
+                             # disconnect, webhook handling), plaid-errors.ts (dependency-free
+                             # error classes, importable from tests without pulling in Prisma)
   proxy.ts                    # Edge-of-app redirect for /dashboard/*
 tests/
   unit/                       # Vitest
@@ -327,10 +334,21 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
   `src/lib/auth/error-messages.ts`); everything else collapses to a generic message before it
   ever reaches the browser — that collapsing happens inside Auth.js itself.
 - An account-deletion path (`/dashboard/settings`) and a financial-connection disconnect path
-  exist, both scoped to the authenticated user and audit-logged.
-- The Plaid webhook signature check remains an explicit `TODO`, not silently skipped — see
-  `src/app/api/plaid/webhook/route.ts`. It intentionally does not require a user session
-  (Plaid calls it server-to-server); it must not be protected by `requireApiUser()`.
+  exist, both scoped to the authenticated user and audit-logged. Disconnecting revokes the item
+  at Plaid (`/item/remove`) and deletes the connection's accounts/transactions locally via
+  cascade — there's no "soft disconnect" state that leaves stale data behind.
+- The Plaid webhook route has no user session (Plaid calls it server-to-server); it's instead
+  protected by verifying the `Plaid-Verification` JWT signature against a Plaid-hosted public
+  key (`src/lib/plaid/webhook-verification.ts`), and rejecting anything older than 5 minutes to
+  limit replay of a captured request. It reads the raw request body, not `request.json()`,
+  because verification needs the exact bytes Plaid signed. It must never be protected by
+  `requireApiUser()` — Plaid has no session to present.
+- `sync-transactions` additionally verifies the requested connection actually belongs to the
+  caller before touching it (`PlaidResourceNotFoundError` → 404, not a generic 500 that would
+  hint at whether the id exists at all).
+- `create-link-token`, `exchange-public-token`, and `sync-transactions` are rate-limited per
+  user (20/minute); the webhook route is deliberately **not** rate-limited so Plaid's own
+  delivery retries for a legitimate webhook aren't dropped.
 
 ### Known limitations
 
@@ -345,30 +363,48 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
   covered at the unit/integration level instead (mocked sessions in `tests/unit/require-user.test.ts`
   and `tests/unit/plaid-routes.test.ts`).
 
-## Plaid Sandbox notes
+## Plaid Setup
 
-Nothing in `src/lib/plaid/` or `src/server/services/plaid-service.ts` calls a real Plaid
-endpoint yet. Three of the four routes (`create-link-token`, `exchange-public-token`,
-`sync-transactions`) require an authenticated session (`requireApiUser()`) and are rate-limited
-per user; `webhook` is intentionally unauthenticated (Plaid calls it server-to-server) pending
-signature verification. All four authenticate-or-not-as-appropriate, validate input, log the
-attempt, and return `501 Not Implemented`. When Plaid work resumes: use **Sandbox** credentials
-(`PLAID_ENV=sandbox`) until a human explicitly approves moving beyond it — never live
-credentials during development.
+1. Create a free account at [dashboard.plaid.com](https://dashboard.plaid.com/signup).
+2. Go to **Team Settings → Keys** and copy your `client_id` and the **Sandbox** `secret` into
+   `.env.local` as `PLAID_CLIENT_ID` / `PLAID_SECRET`. Leave `PLAID_ENV=sandbox` — do not use
+   Development/Production credentials until a human explicitly approves moving beyond Sandbox.
+3. `PLAID_WEBHOOK_URL` must be a **publicly reachable HTTPS URL** for webhooks to actually
+   arrive — `http://localhost:3000/...` doesn't work, since Plaid's servers can't reach your
+   machine. Locally, either leave it blank (the app still works — see below) or use a tunnel
+   (e.g. `ngrok http 3000`) and set it to the tunnel's HTTPS URL plus
+   `/api/plaid/webhook`. On Vercel, set it to
+   `https://your-domain.vercel.app/api/plaid/webhook`.
+4. In Plaid Link (triggered by the "Connect an account" button), search for **any** test
+   institution (e.g. "Platypus Bank") and sign in with Plaid's standard Sandbox credentials:
+   username `user_good`, password `pass_good`. This works for every Sandbox institution and
+   returns realistic fake accounts and transaction history.
+
+### How the flow works
+
+- **Connect an account** → `PlaidLinkButton` (`src/components/dashboard/plaid-link-button.tsx`)
+  fetches a `link_token` from `/api/plaid/create-link-token`, opens Plaid Link in the browser,
+  and on success POSTs the resulting `public_token` to `/api/plaid/exchange-public-token`.
+- The server exchanges it for an access token (**encrypted before it ever touches the
+  database** — see `encryptSecret()`), fetches the linked accounts, and runs an initial
+  transaction sync immediately (so you see data right away rather than waiting on a webhook).
+- Ongoing updates arrive via the `webhook` route, which verifies Plaid's `Plaid-Verification`
+  JWT signature (`src/lib/plaid/webhook-verification.ts`) against the raw request body before
+  trusting anything in it, then re-runs the same sync logic.
+- **Settings → Connected accounts** has a manual **Sync now** button per connection — useful
+  for testing without waiting on webhook delivery timing, and **Disconnect**, which revokes
+  the item at Plaid (`/item/remove`) and deletes the connection plus all its accounts and
+  transactions locally (cascade delete) — there's no "soft disconnect" state.
 
 ## Future roadmap
 
-1. **Implement the complete Plaid Sandbox connection flow** (this is the recommended next
-   task) — Plaid Link on the client, `createLinkToken` / `exchangePublicToken` on the server,
-   encrypted access-token storage, account and transaction synchronization, webhook signature
-   verification, a disconnect flow, and financial-data deletion. Test with Google, GitHub, and
-   email sign-in locally first.
-2. Build real spending analytics and net-worth charts once transaction data exists.
-3. Add AI-generated financial insights on top of synced transaction data.
-4. Replace the in-memory rate limiter with a shared store (e.g. `@upstash/ratelimit`) before a
+1. Build real spending analytics and net-worth-over-time charts (the latter needs a new
+   balance-history/snapshot mechanism — the schema only tracks current balances today).
+2. Add AI-generated financial insights on top of synced transaction data.
+3. Replace the in-memory rate limiter with a shared store (e.g. `@upstash/ratelimit`) before a
    multi-instance production deployment.
-5. Replace the environment-variable encryption key with a cloud KMS before handling real
-   financial data.
+4. Replace the environment-variable encryption key with a cloud KMS before handling real
+   financial data or moving beyond Plaid Sandbox.
 
 ## Credential Checklist
 
@@ -383,7 +419,6 @@ Credentials you need to personally create and add to `.env.local` (never commit 
 [ ] GitHub OAuth client secret
 [ ] Resend sending API key
 [ ] Verified Resend sender address
+[ ] Plaid Sandbox client ID
+[ ] Plaid Sandbox secret
 ```
-
-Plaid Sandbox credentials (`PLAID_CLIENT_ID`, `PLAID_SECRET`) are unchanged by this task — see
-[Plaid Sandbox notes](#plaid-sandbox-notes) above.

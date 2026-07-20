@@ -1,12 +1,11 @@
 import { requireUser } from "@/lib/auth/require-user";
 import { signOut } from "@/lib/auth/config";
 import { prisma } from "@/lib/db/prisma";
-import {
-  listFinancialConnectionsForUser,
-  disconnectFinancialConnectionForUser,
-} from "@/server/repositories/financial-connection.repository";
+import { listFinancialConnectionsForUser } from "@/server/repositories/financial-connection.repository";
+import { disconnectConnection, syncTransactions } from "@/server/services/plaid-service";
 import { logger } from "@/lib/security/logger";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SubmitButton } from "@/components/forms/submit-button";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -18,16 +17,19 @@ export default async function SettingsPage() {
     const connectionId = String(formData.get("connectionId") ?? "");
     if (!connectionId) return;
 
-    await disconnectFinancialConnectionForUser(currentUser.id, connectionId);
-    await prisma.auditLog.create({
-      data: {
-        userId: currentUser.id,
-        action: "financial_connection.disconnect",
-        entityType: "FinancialConnection",
-        entityId: connectionId,
-      },
-    });
-    logger.info("financial_connection.disconnected", { userId: currentUser.id, connectionId });
+    // Revokes access at Plaid, then deletes the connection and (via
+    // cascade) its accounts/transactions/sync state. Audit-logged inside
+    // the service.
+    await disconnectConnection(currentUser.id, connectionId);
+  }
+
+  async function syncAction(formData: FormData) {
+    "use server";
+    const currentUser = await requireUser();
+    const connectionId = String(formData.get("connectionId") ?? "");
+    if (!connectionId) return;
+
+    await syncTransactions(currentUser.id, { financialConnectionId: connectionId });
   }
 
   async function deleteAccountAction() {
@@ -99,15 +101,26 @@ export default async function SettingsPage() {
                       Status: {connection.status}
                     </p>
                   </div>
-                  <form action={disconnectAction}>
-                    <input type="hidden" name="connectionId" value={connection.id} />
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                    >
-                      Disconnect
-                    </button>
-                  </form>
+                  <div className="flex gap-2">
+                    <form action={syncAction}>
+                      <input type="hidden" name="connectionId" value={connection.id} />
+                      <SubmitButton
+                        pendingLabel="Syncing…"
+                        className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      >
+                        Sync now
+                      </SubmitButton>
+                    </form>
+                    <form action={disconnectAction}>
+                      <input type="hidden" name="connectionId" value={connection.id} />
+                      <SubmitButton
+                        pendingLabel="Disconnecting…"
+                        className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                      >
+                        Disconnect
+                      </SubmitButton>
+                    </form>
+                  </div>
                 </li>
               ))}
             </ul>
