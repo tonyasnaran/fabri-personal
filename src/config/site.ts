@@ -1,12 +1,12 @@
 export const siteConfig = {
-  name: "Personal Dashboard",
-  title: "Your Name",
-  tagline: "Software engineer building thoughtful, secure products.",
+  name: "Anthony Asnaran",
+  title: "Anthony Asnaran",
+  tagline: "Builder, connector, and operator based in Los Angeles.",
   description:
-    "Personal website and private financial dashboard. Public portfolio plus an authenticated, Plaid-connected view of accounts, transactions, and net worth.",
-  links: {
-    github: "https://github.com/your-username",
-    linkedin: "https://linkedin.com/in/your-username",
-    email: "mailto:you@example.com",
+    "Anthony Asnaran is a Los Angeles-based builder — Founder of DEROS, The Sidequests Club at UCLA, and Iota Psi Omega. UCLA Business Economics, class of 2026.",
+  location: "Los Angeles, CA",
+  cal: {
+    url: "https://cal.com/anthonyasnaran/30min",
+    label: "Book a 30-minute call",
   },
 } as const;

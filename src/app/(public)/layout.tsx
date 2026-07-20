@@ -1,13 +1,25 @@
-import type { ReactNode } from "react";
-import { PublicHeader } from "@/components/layout/public-header";
-import { PublicFooter } from "@/components/layout/public-footer";
+import type { CSSProperties, ReactNode } from "react";
+import "@fontsource-variable/fraunces/full.css";
+import { SiteHeader } from "@/components/public/site-header";
+import { SiteFooter } from "@/components/public/site-footer";
+import { SkipLink } from "@/components/public/skip-link";
+
+const frauncesVariable = {
+  "--font-fraunces": "'Fraunces Variable', ui-serif, Georgia, serif",
+} as CSSProperties;
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-white dark:bg-black">
-      <PublicHeader />
-      <main className="flex-1">{children}</main>
-      <PublicFooter />
+    <div
+      style={frauncesVariable}
+      className="flex min-h-screen flex-col bg-[#F7F4EC] text-[#17140F]"
+    >
+      <SkipLink />
+      <SiteHeader />
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
+      <SiteFooter />
     </div>
   );
 }
