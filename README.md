@@ -320,14 +320,25 @@ as `DATABASE_URL` is set before build. This task does not deploy anything.
   account, and whether or not it was rate-limited — this avoids turning the form into an
   account-existence oracle.
 - `next.config.ts` sets a baseline CSP plus `X-Frame-Options`, `X-Content-Type-Options`,
-  `Referrer-Policy`, `Permissions-Policy`, and HSTS. `form-action` explicitly allowlists
-  `accounts.google.com` and `github.com`: the "Continue with Google/GitHub" buttons are
-  same-origin form submissions that the server 303-redirects to the provider, and browsers
-  enforce `form-action` against that redirect _target_ too, not just the form's own action URL
-  — with only `'self'`, the server sends a perfectly valid redirect and the browser silently
-  refuses to follow it. (Found this the hard way testing real Google sign-in post-deploy — the
-  server-side redirect and Google Console config were both already correct.) The Resend call
-  happens server-side, not subject to browser CSP at all.
+  `Referrer-Policy`, `Permissions-Policy`, and HSTS. Two adjustments were made after testing
+  against a real production deploy (both documented in code comments where they're set):
+  - `form-action` explicitly allowlists `accounts.google.com` and `github.com`: the "Continue
+    with Google/GitHub" buttons are same-origin form submissions that the server 303-redirects
+    to the provider, and browsers enforce `form-action` against that redirect _target_ too, not
+    just the form's own action URL — with only `'self'`, the server sent a perfectly valid
+    redirect and the browser silently refused to follow it.
+  - `script-src` includes `'unsafe-inline'`. This isn't optional for a Next.js App Router app:
+    every page streams its RSC hydration payload via inline `<script>` tags as part of Next's
+    own runtime, and any route with a `loading.tsx` (streaming its real content in after the
+    Suspense fallback) would otherwise freeze on that fallback forever, with no error thrown
+    anywhere — reproduced this exact freeze in production before tracing it to the CSP. Next's
+    documented nonce-based alternative avoids `unsafe-inline` but requires the _entire_ app to
+    render dynamically, disabling static optimization even for the public marketing pages —
+    a worse tradeoff here. See the comment above `contentSecurityPolicy` in `next.config.ts` for
+    the full reasoning and a link to Next's own docs on both approaches.
+
+  The Resend call happens server-side, not subject to browser CSP at all.
+
 - API responses never leak stack traces or raw exception messages — see
   `internalErrorResponse()` in `src/lib/api/response.ts`. Auth.js error pages only ever show
   copy mapped from a small allow-list of "client-safe" error codes (see

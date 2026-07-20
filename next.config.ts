@@ -1,15 +1,37 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
+const isDev = process.env.NODE_ENV === "development";
+
 /**
- * Baseline CSP. `unsafe-inline` on style-src is required by Next.js's
- * inlined critical CSS; there is no inline script usage in this app
- * (no `dangerouslySetInnerHTML`, no eval). Tighten further with a nonce
- * if/when third-party scripts are introduced.
+ * Baseline CSP.
+ *
+ * `unsafe-inline` on style-src is required by Next.js's inlined critical
+ * CSS. `unsafe-inline` on script-src is required by Next.js App Router
+ * itself: every page (not just this app's own code) streams its RSC
+ * hydration payload to the browser via inline `<script>` tags
+ * (`self.__next_f.push(...)`) — this is Next's own runtime mechanism, not
+ * anything we author. Without it, pages with a `loading.tsx` (which wraps
+ * the route in a Suspense boundary and streams the real content in after
+ * the fallback) never receive that follow-up chunk: the browser is left
+ * showing the loading skeleton forever, with no error thrown anywhere
+ * server-side. Confirmed by reproducing this exact freeze in production.
+ *
+ * Next's documented alternative is a per-request nonce generated in
+ * proxy.ts, but that requires *every* page to render dynamically — no
+ * static optimization anywhere in the app, including the public marketing
+ * pages, which lose nothing from XSS-hardening they don't render any
+ * user-controlled content to begin with. Given that tradeoff, `unsafe-inline`
+ * here is a deliberate, framework-mandated exception, not a "silence the
+ * console" workaround — see node_modules/next/dist/docs/01-app/02-guides/
+ * content-security-policy.md for Next's own writeup of both options.
+ * `unsafe-eval` is added only in development, where React needs it to
+ * reconstruct server-side error stacks in the browser; it's never present
+ * in a production response.
  */
 const contentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self' data:",
