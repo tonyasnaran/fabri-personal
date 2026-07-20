@@ -1,0 +1,243 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js core models
+// https://authjs.dev/getting-started/adapters/prisma
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts             Account[]
+  sessions             Session[]
+  financialConnections FinancialConnection[]
+  auditLogs            AuditLog[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Financial domain models
+//
+// Money is always stored as Decimal (never Float) to avoid floating-point
+// rounding errors on financial amounts. Every query is expected to be
+// scoped by userId at the repository layer — never trust a client-supplied
+// user id when reading or writing these tables.
+// ---------------------------------------------------------------------------
+
+enum FinancialProvider {
+  PLAID
+}
+
+enum ConnectionStatus {
+  ACTIVE
+  ERROR
+  DISCONNECTED
+  PENDING_REAUTH
+}
+
+enum AccountType {
+  DEPOSITORY
+  CREDIT
+  LOAN
+  INVESTMENT
+  OTHER
+}
+
+model FinancialConnection {
+  id       String            @id @default(cuid())
+  userId   String
+  provider FinancialProvider @default(PLAID)
+
+  /// Plaid `item_id`. Unique so webhook retries can't create duplicate connections.
+  plaidItemId String @unique
+
+  /// AES-256-GCM ciphertext (see src/lib/encryption). Never the raw Plaid access token.
+  encryptedAccessToken String @db.Text
+
+  institutionId   String?
+  institutionName String?
+
+  status           ConnectionStatus @default(ACTIVE)
+  consentExpiresAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  financialAccounts FinancialAccount[]
+  syncState         TransactionSyncState?
+
+  @@index([userId])
+  @@map("financial_connections")
+}
+
+model FinancialAccount {
+  id                    String @id @default(cuid())
+  userId                String
+  financialConnectionId String
+
+  /// Plaid `account_id`. Unique so sync jobs can't create duplicate accounts.
+  plaidAccountId String @unique
+
+  name         String
+  officialName String?
+  type         AccountType
+  subtype      String?
+
+  /// Last 4 digits / account mask, e.g. "4321". Never the full account number.
+  mask String?
+
+  currentBalance   Decimal  @db.Decimal(19, 4)
+  availableBalance Decimal? @db.Decimal(19, 4)
+  isoCurrencyCode  String   @default("USD")
+
+  lastSyncedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  financialConnection FinancialConnection @relation(fields: [financialConnectionId], references: [id], onDelete: Cascade)
+  transactions        Transaction[]
+
+  @@index([userId])
+  @@index([financialConnectionId])
+  @@map("financial_accounts")
+}
+
+model Transaction {
+  id                 String @id @default(cuid())
+  userId             String
+  financialAccountId String
+
+  /// Plaid `transaction_id`. Unique so sync retries can't create duplicates.
+  plaidTransactionId String @unique
+
+  merchantName String?
+  description  String
+
+  amount          Decimal @db.Decimal(19, 4)
+  isoCurrencyCode String  @default("USD")
+
+  transactionDate DateTime  @db.Date
+  authorizedDate  DateTime? @db.Date
+  pending         Boolean   @default(false)
+
+  primaryCategory  String?
+  detailedCategory String?
+  userCategory     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  financialAccount FinancialAccount @relation(fields: [financialAccountId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([financialAccountId])
+  @@index([transactionDate])
+  @@map("transactions")
+}
+
+model TransactionSyncState {
+  id                    String @id @default(cuid())
+  financialConnectionId String @unique
+
+  /// Plaid `/transactions/sync` cursor. Null until the first successful sync.
+  cursor String? @db.Text
+
+  lastSuccessfulSyncAt DateTime?
+  lastSyncError        String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  financialConnection FinancialConnection @relation(fields: [financialConnectionId], references: [id], onDelete: Cascade)
+
+  @@map("transaction_sync_states")
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String?
+
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

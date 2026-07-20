@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+/blob-report
 
 # next.js
 /.next/
@@ -30,8 +33,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (never commit secrets)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
 
 # vercel
 .vercel
@@ -39,3 +47,17 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma generated client (regenerate with `npm run db:generate`)
+/src/generated
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Plaid / database credentials (defense in depth; should never exist on disk)
+*.pem
+*.key
+credentials.json
+plaid-credentials*
