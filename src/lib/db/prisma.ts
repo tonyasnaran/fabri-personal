@@ -15,7 +15,16 @@ declare global {
 }
 
 function createPrismaClient(): PrismaClient {
-  const adapter = new PrismaPg({ connectionString: getServerEnv().DATABASE_URL });
+  const adapter = new PrismaPg({
+    connectionString: getServerEnv().DATABASE_URL,
+    // Serverless functions run one request at a time per instance, but
+    // pg.Pool defaults to `max: 10` — every cold start would otherwise try
+    // to open up to 10 connections against Postgres (or your connection
+    // pooler's own connection budget), which adds up fast across concurrent
+    // invocations and can leave requests hanging while they wait for a
+    // slot rather than failing fast. One connection per instance is enough.
+    max: 1,
+  });
   return new PrismaClient({ adapter });
 }
 
